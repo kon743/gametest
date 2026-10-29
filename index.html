@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberSkill Quest - デジタルスキル学習ゲーム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            dark: '#0a0d14',
+                            panel: '#121824',
+                            border: '#1e293b',
+                            neonBlue: '#00f0ff',
+                            neonGreen: '#00ff66',
+                            neonPink: '#ff007f',
+                            neonYellow: '#ffe600',
+                            neonPurple: '#a855f7'
+                        }
+                    },
+                    boxShadow: {
+                        'neon-blue': '0 0 15px rgba(0, 240, 255, 0.4)',
+                        'neon-green': '0 0 15px rgba(0, 255, 102, 0.4)',
+                        'neon-pink': '0 0 15px rgba(255, 0, 127, 0.4)',
+                        'neon-purple': '0 0 15px rgba(168, 85, 247, 0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Noto+Sans+JP:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #0a0d14;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+
+        .code-font {
+            font-family: 'Fira Code', monospace;
+        }
+
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0d14;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00f0ff;
+        }
+
+        .scanline {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0, 0, 0, 0.3) 50%,
+                rgba(0, 0, 0, 0.3)
+            );
+            background-size: 100% 4px;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .glow-effect {
+            animation: pulse-glow 2s infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-cyber-neonBlue selection:text-black">
+    <!-- スキャンラインエフェクトオーバーレイ -->
+    <div class="pointer-events-none fixed inset-0 z-50 scanline opacity-30"></div>
+
+    <!-- ヘッダー / ステータスバー -->
+    <header class="bg-cyber-panel/90 border-b border-cyber-border sticky top-0 z-40 backdrop-blur-md px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+            <!-- ロゴ -->
+            <div class="flex items-center gap-3 cursor-pointer" onclick="showDashboard()">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-tr from-cyber-neonBlue to-cyber-neonPurple flex items-center justify-center text-black font-black text-xl shadow-neon-blue">
+                    <i class="fa-solid fa-terminal"></i>
+                </div>
+                <div>
+                    <h1 class="font-black text-xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyber-neonBlue via-cyber-neonGreen to-cyber-neonPink">
+                        CYBER SKILL Quest
+                    </h1>
+                    <p class="text-xs text-gray-400 code-font">v2.026 // DIGITAL_ACADEMY</p>
+                </div>
+            </div>
+
+            <!-- ステータス表示 -->
+            <div class="flex items-center gap-6 bg-cyber-dark/80 px-4 py-2 rounded-xl border border-cyber-border">
+                <!-- レベル -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-400 font-bold">LV.</span>
+                    <span id="player-level" class="text-xl font-extrabold text-cyber-neonGreen code-font">1</span>
+                </div>
+
+                <!-- XPバー -->
+                <div class="flex flex-col w-32 sm:w-48">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-gray-400">XP</span>
+                        <span id="player-xp-text" class="text-cyber-neonBlue code-font">0 / 100</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-700">
+                        <div id="player-xp-bar" class="h-full bg-gradient-to-r from-cyber-neonBlue to-cyber-neonGreen w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+
+                <!-- 総スコア -->
+                <div class="hidden sm:flex items-center gap-2 border-l border-gray-700 pl-4">
+                    <i class="fa-solid fa-trophy text-cyber-neonYellow"></i>
+                    <span id="player-score" class="text-lg font-bold text-cyber-neonYellow code-font">0</span>
+                </div>
+
+                <!-- オーディオ切替ボタン -->
+                <button id="audio-toggle" onclick="toggleAudio()" class="text-gray-400 hover:text-cyber-neonBlue transition-colors p-1" title="ミュート切替">
+                    <i class="fa-solid fa-volume-high text-lg" id="audio-icon"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ領域 -->
+    <main class="max-w-7xl mx-auto w-full p-4 sm:p-6 flex-grow">
+
+        <!-- 1. ダッシュボード / ゲーム選択画面 -->
+        <section id="view-dashboard" class="space-y-8">
+            <!-- ヒーローバナー -->
+            <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-cyber-panel via-slate-900 to-cyber-panel border border-cyber-border p-6 sm:p-8">
+                <div class="absolute -right-10 -bottom-10 text-cyber-neonBlue/10 text-9xl font-black pointer-events-none select-none">
+                    <i class="fa-solid fa-microchip"></i>
+                </div>
+                <div class="relative z-10 max-w-2xl">
+                    <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-cyber-neonBlue/10 text-cyber-neonBlue border border-cyber-neonBlue/30 mb-3">
+                        <i class="fa-solid fa-shield-halved mr-1"></i> インタラクティブ・トレーニング
+                    </span>
+                    <h2 class="text-2xl sm:text-4xl font-black mb-3 leading-tight">
+                        未来を生き抜く<br><span class="text-cyber-neonBlue">デジタルスキル</span>をマスターせよ
+                    </h2>
+                    <p class="text-gray-300 text-sm sm:text-base mb-4">
+                        タイピング、ショートカットキー、2進数アルゴリズム、サイバーセキュリティ。実践的な4つのミッションをクリアして、ITスペシャリストへのランクアップを目指そう。
+                    </p>
+                </div>
+            </div>
+
+            <!-- ゲームカードグリッド -->
+            <div>
+                <h3 class="text-lg font-bold mb-4 text-cyber-neonBlue flex items-center gap-2">
+                    <i class="fa-solid fa-gamepad"></i> トレーニング・ミッション
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+                    <!-- ミッション 1: タイピング -->
+                    <div onclick="startTypingGame()" class="group relative rounded-2xl bg-cyber-panel border border-cyber-border p-6 hover:border-cyber-neonBlue hover:shadow-neon-blue transition-all cursor-pointer flex flex-col justify-between">
+                        <div>
+                            <div class="w-12 h-12 rounded-xl bg-cyber-neonBlue/10 text-cyber-neonBlue border border-cyber-neonBlue/30 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-keyboard"></i>
+                            </div>
+                            <h4 class="text-xl font-bold mb-2 group-hover:text-cyber-neonBlue transition-colors">タイピング・マスター</h4>
+                            <p class="text-xs text-gray-400 leading-relaxed mb-4">
+                                IT用語やJavaScriptコードの高速＆正確なタイピング。WPMと正確性を鍛えます。
+                            </p>
+                        </div>
+                        <div class="flex items-center justify-between text-xs border-t border-gray-800 pt-3">
+                            <span class="text-gray-500">難易度: <span class="text-cyber-neonGreen">初級〜上級</span></span>
+                            <span class="text-cyber-neonBlue font-semibold group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                START <i class="fa-solid fa-arrow-right"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- ミッション 2: ショートカット -->
+                    <div onclick="startShortcutGame()" class="group relative rounded-2xl bg-cyber-panel border border-cyber-border p-6 hover:border-cyber-neonGreen hover:shadow-neon-green transition-all cursor-pointer flex flex-col justify-between">
+                        <div>
+                            <div class="w-12 h-12 rounded-xl bg-cyber-neonGreen/10 text-cyber-neonGreen border border-cyber-neonGreen/30 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-bolt"></i>
+                            </div>
+                            <h4 class="text-xl font-bold mb-2 group-hover:text-cyber-neonGreen transition-colors">ショートカット・マスター</h4>
+                            <p class="text-xs text-gray-400 leading-relaxed mb-4">
+                                作業効率を爆発させる操作キーを瞬時に入力！Win/Macの主要ショートカットに対応。
+                            </p>
+                        </div>
+                        <div class="flex items-center justify-between text-xs border-t border-gray-800 pt-3">
+                            <span class="text-gray-500">難易度: <span class="text-cyber-neonYellow">中級</span></span>
+                            <span class="text-cyber-neonGreen font-semibold group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                START <i class="fa-solid fa-arrow-right"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- ミッション 3: 2進数パズル -->
+                    <div onclick="startBinaryGame()" class="group relative rounded-2xl bg-cyber-panel border border-cyber-border p-6 hover:border-cyber-neonPurple hover:shadow-neon-purple transition-all cursor-pointer flex flex-col justify-between">
+                        <div>
+                            <div class="w-12 h-12 rounded-xl bg-cyber-neonPurple/10 text-cyber-neonPurple border border-cyber-neonPurple/30 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-binary"></i>
+                            </div>
+                            <h4 class="text-xl font-bold mb-2 group-hover:text-cyber-neonPurple transition-colors">2進数・バイナリパズル</h4>
+                            <p class="text-xs text-gray-400 leading-relaxed mb-4">
+                                ビット（0と1）をトグルしてターゲットの10進数を作成。コンピュータの基本理論を体感。
+                            </p>
+                        </div>
+                        <div class="flex items-center justify-between text-xs border-t border-gray-800 pt-3">
+                            <span class="text-gray-500">難易度: <span class="text-cyber-neonYellow">中級</span></span>
+                            <span class="text-cyber-neonPurple font-semibold group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                START <i class="fa-solid fa-arrow-right"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- ミッション 4: セキュリティ -->
+                    <div onclick="startSecurityGame()" class="group relative rounded-2xl bg-cyber-panel border border-cyber-border p-6 hover:border-cyber-neonPink hover:shadow-neon-pink transition-all cursor-pointer flex flex-col justify-between">
+                        <div>
+                            <div class="w-12 h-12 rounded-xl bg-cyber-neonPink/10 text-cyber-neonPink border border-cyber-neonPink/30 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-user-shield"></i>
+                            </div>
+                            <h4 class="text-xl font-bold mb-2 group-hover:text-cyber-neonPink transition-colors">セキュリティ・ディテクター</h4>
+                            <p class="text-xs text-gray-400 leading-relaxed mb-4">
+                                フィッシングメール、危険なURL、脆弱なパスワードを見抜いて見分ける知識判定。
+                            </p>
+                        </div>
+                        <div class="flex items-center justify-between text-xs border-t border-gray-800 pt-3">
+                            <span class="text-gray-500">難易度: <span class="text-cyber-neonGreen">初級〜中級</span></span>
+                            <span class="text-cyber-neonPink font-semibold group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                START <i class="fa-solid fa-arrow-right"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 実績 / アチーブメント -->
+            <div class="bg-cyber-panel rounded-2xl border border-cyber-border p-6">
+                <h3 class="text-lg font-bold mb-4 text-cyber-neonYellow flex items-center gap-2">
+                    <i class="fa-solid fa-award"></i> 実績バッジ (Achievements)
+                </h3>
+                <div id="achievements-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                    <!-- JSで動的生成 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. タイピングゲーム画面 -->
+        <section id="view-typing" class="hidden space-y-6">
+            <div class="flex items-center justify-between border-b border-cyber-border pb-4">
+                <button onclick="showDashboard()" class="text-gray-400 hover:text-white flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-arrow-left"></i> メニューへ戻る
+                </button>
+                <div class="flex items-center gap-4 text-sm code-font">
+                    <span class="text-gray-400">制限時間: <span id="typing-timer" class="text-cyber-neonYellow font-bold">60</span>s</span>
+                    <span class="text-gray-400">WPM: <span id="typing-wpm" class="text-cyber-neonBlue font-bold">0</span></span>
+                    <span class="text-gray-400">正確性: <span id="typing-accuracy" class="text-cyber-neonGreen font-bold">100</span>%</span>
+                </div>
+            </div>
+
+            <div class="max-w-3xl mx-auto bg-cyber-panel border border-cyber-border rounded-2xl p-6 sm:p-10 flex flex-col items-center text-center space-y-6">
+                <div class="text-xs text-cyber-neonBlue code-font bg-cyber-neonBlue/10 px-3 py-1 rounded-full border border-cyber-neonBlue/30">
+                    <span id="typing-category">IT用語</span>
+                </div>
+
+                <!-- お題表示 -->
+                <div class="w-full space-y-2">
+                    <div id="typing-target-jp" class="text-gray-400 text-sm font-medium h-6">日本語の説明</div>
+                    <div id="typing-target-display" class="text-2xl sm:text-3xl font-bold code-font tracking-wide leading-relaxed min-h-[3rem] text-gray-500">
+                        <!-- 動的割り当て -->
+                    </div>
+                </div>
+
+                <!-- リアルタイム入力ガイド -->
+                <div class="w-full max-w-xl">
+                    <input type="text" id="typing-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                           class="w-full bg-cyber-dark border-2 border-cyber-neonBlue rounded-xl px-4 py-3 text-center text-xl code-font focus:outline-none focus:shadow-neon-blue text-white"
+                           placeholder="ここに入力してスタート...">
+                </div>
+
+                <p class="text-xs text-gray-500">※ Enterキーを押す必要はありません。正確に入力すると自動で次に進みます。</p>
+            </div>
+        </section>
+
+        <!-- 3. ショートカットキーゲーム画面 -->
+        <section id="view-shortcut" class="hidden space-y-6">
+            <div class="flex items-center justify-between border-b border-cyber-border pb-4">
+                <button onclick="showDashboard()" class="text-gray-400 hover:text-white flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-arrow-left"></i> メニューへ戻る
+                </button>
+                <div class="flex items-center gap-4 text-sm code-font">
+                    <span class="text-gray-400">スコア: <span id="shortcut-score" class="text-cyber-neonGreen font-bold">0</span></span>
+                    <span class="text-gray-400">残り問題: <span id="shortcut-remaining" class="text-cyber-neonYellow font-bold">10</span></span>
+                </div>
+            </div>
+
+            <div class="max-w-2xl mx-auto bg-cyber-panel border border-cyber-border rounded-2xl p-6 sm:p-10 flex flex-col items-center text-center space-y-8">
+                <!-- OS切り替え -->
+                <div class="flex bg-cyber-dark p-1 rounded-xl border border-cyber-border">
+                    <button id="os-win-btn" onclick="setShortcutOS('win')" class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-cyber-neonGreen text-black">Windows</button>
+                    <button id="os-mac-btn" onclick="setShortcutOS('mac')" class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-400">macOS</button>
+                </div>
+
+                <div>
+                    <h3 id="shortcut-question" class="text-2xl font-bold mb-2">指定された操作のショートカットキーを押してください</h3>
+                    <p id="shortcut-desc" class="text-gray-400 text-sm">「コピー」のショートカットキーは？</p>
+                </div>
+
+                <!-- 押されたキーのリアルタイム表示 -->
+                <div class="min-h-[100px] flex items-center justify-center gap-3">
+                    <div id="shortcut-key-display" class="flex items-center gap-2">
+                        <span class="px-4 py-3 bg-cyber-dark border border-gray-700 rounded-xl text-xl font-bold code-font text-gray-500 shadow-inner">キーを押してください</span>
+                    </div>
+                </div>
+
+                <!-- ガイドメッセージ -->
+                <div id="shortcut-feedback" class="text-sm font-bold min-h-[1.5rem]"></div>
+            </div>
+        </section>
+
+        <!-- 4. 2進数・バイナリパズル画面 -->
+        <section id="view-binary" class="hidden space-y-6">
+            <div class="flex items-center justify-between border-b border-cyber-border pb-4">
+                <button onclick="showDashboard()" class="text-gray-400 hover:text-white flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-arrow-left"></i> メニューへ戻る
+                </button>
+                <div class="flex items-center gap-4 text-sm code-font">
+                    <span class="text-gray-400">ステージ: <span id="binary-stage" class="text-cyber-neonPurple font-bold">1/5</span></span>
+                    <span class="text-gray-400">スコア: <span id="binary-score" class="text-cyber-neonYellow font-bold">0</span></span>
+                </div>
+            </div>
+
+            <div class="max-w-3xl mx-auto bg-cyber-panel border border-cyber-border rounded-2xl p-6 sm:p-10 flex flex-col items-center text-center space-y-8">
+                <div>
+                    <span class="text-xs text-cyber-neonPurple code-font">TARGET DECIMAL</span>
+                    <div id="binary-target" class="text-5xl font-black code-font text-cyber-neonPurple my-2">42</div>
+                    <p class="text-xs text-gray-400">下のビット(0/1)をタップしてトグルし、目標の10進数を作成してください</p>
+                </div>
+
+                <!-- 8ビット スイッチ -->
+                <div class="grid grid-cols-8 gap-2 sm:gap-4 w-full max-w-xl">
+                    <!-- JSで8つのビットを生成 -->
+                    <div id="binary-bits-container" class="contents"></div>
+                </div>
+
+                <!-- 現在の合計表示 -->
+                <div class="bg-cyber-dark px-6 py-3 rounded-xl border border-cyber-border flex items-center gap-4 code-font">
+                    <span class="text-gray-400 text-sm">CURRENT SUM:</span>
+                    <span id="binary-current-sum" class="text-2xl font-bold text-white">0</span>
+                </div>
+
+                <button onclick="checkBinaryAnswer()" class="w-full max-w-xs py-3 rounded-xl bg-gradient-to-r from-cyber-neonPurple to-cyber-neonBlue text-black font-extrabold hover:opacity-90 transition-opacity shadow-neon-purple">
+                    送信 (SUBMIT)
+                </button>
+            </div>
+        </section>
+
+        <!-- 5. サイバーセキュリティ・ディテクター画面 -->
+        <section id="view-security" class="hidden space-y-6">
+            <div class="flex items-center justify-between border-b border-cyber-border pb-4">
+                <button onclick="showDashboard()" class="text-gray-400 hover:text-white flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-arrow-left"></i> メニューへ戻る
+                </button>
+                <div class="flex items-center gap-4 text-sm code-font">
+                    <span class="text-gray-400">正解数: <span id="security-score" class="text-cyber-neonPink font-bold">0/5</span></span>
+                </div>
+            </div>
+
+            <div class="max-w-2xl mx-auto bg-cyber-panel border border-cyber-border rounded-2xl p-6 sm:p-8 space-y-6">
+                <div class="flex justify-between items-center">
+                    <span id="security-category" class="text-xs font-bold text-cyber-neonPink bg-cyber-neonPink/10 px-3 py-1 rounded-full border border-cyber-neonPink/30">
+                        フィッシング対策
+                    </span>
+                    <span id="security-progress" class="text-xs text-gray-400 code-font">QUESTION 1/5</span>
+                </div>
+
+                <!-- 判定カード -->
+                <div class="bg-cyber-dark p-5 rounded-xl border border-gray-800 space-y-3">
+                    <h4 id="security-title" class="font-bold text-lg text-white">以下のメールは安全ですか？それとも危険（攻撃）ですか？</h4>
+                    <div id="security-content" class="text-sm text-gray-300 bg-black/40 p-4 rounded-lg border border-gray-800 code-font whitespace-pre-wrap leading-relaxed">
+                        <!-- 問題文が動的に入る -->
+                    </div>
+                </div>
+
+                <!-- 2択ボタン -->
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="answerSecurity(true)" class="py-4 rounded-xl border border-cyber-neonGreen bg-cyber-neonGreen/10 hover:bg-cyber-neonGreen/20 text-cyber-neonGreen font-bold flex flex-col items-center gap-1 transition-all">
+                        <i class="fa-solid fa-circle-check text-2xl"></i>
+                        <span>安全 (SAFE)</span>
+                    </button>
+                    <button onclick="answerSecurity(false)" class="py-4 rounded-xl border border-cyber-neonPink bg-cyber-neonPink/10 hover:bg-cyber-neonPink/20 text-cyber-neonPink font-bold flex flex-col items-center gap-1 transition-all">
+                        <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+                        <span>危険 (DANGER)</span>
+                    </button>
+                </div>
+
+                <!-- 解答・解説エリア -->
+                <div id="security-explanation" class="hidden p-4 rounded-xl bg-gray-900 border border-gray-700 text-sm space-y-2">
+                    <div id="security-result-title" class="font-bold"></div>
+                    <p id="security-result-desc" class="text-gray-300 leading-relaxed"></p>
+                    <button onclick="nextSecurityQuestion()" class="w-full mt-2 py-2 bg-cyber-neonBlue text-black font-bold rounded-lg hover:opacity-90 transition-opacity">
+                        次の問題へ
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. ゲームリザルトモーダル -->
+        <div id="modal-result" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+            <div class="bg-cyber-panel border-2 border-cyber-neonBlue rounded-2xl max-w-md w-full p-6 text-center space-y-6 shadow-neon-blue relative overflow-hidden">
+                <div class="w-20 h-20 bg-cyber-neonBlue/10 text-cyber-neonBlue rounded-full flex items-center justify-center text-4xl mx-auto border border-cyber-neonBlue/30">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                
+                <div>
+                    <h3 class="text-2xl font-black text-white mb-1">MISSION COMPLETE!</h3>
+                    <p id="result-game-title" class="text-xs text-cyber-neonBlue code-font">TYPING MASTER</p>
+                </div>
+
+                <div class="bg-cyber-dark p-4 rounded-xl border border-gray-800 grid grid-cols-2 gap-4 text-center code-font">
+                    <div>
+                        <span class="text-xs text-gray-500 block">獲得スコア</span>
+                        <span id="result-score" class="text-2xl font-extrabold text-cyber-neonYellow">+500</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-gray-500 block">獲得 XP</span>
+                        <span id="result-xp" class="text-2xl font-extrabold text-cyber-neonGreen">+120</span>
+                    </div>
+                </div>
+
+                <div id="result-stats" class="text-xs text-gray-400 space-y-1 text-left bg-cyber-dark/50 p-3 rounded-lg border border-gray-800/50">
+                    <!-- 詳細スタッツ -->
+                </div>
+
+                <button onclick="closeResultModal()" class="w-full py-3 bg-gradient-to-r from-cyber-neonBlue to-cyber-neonGreen text-black font-extrabold rounded-xl hover:opacity-90 transition-opacity">
+                    ダッシュボードに戻る
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- フッター -->
+    <footer class="bg-cyber-panel/50 border-t border-cyber-border py-4 text-center text-xs text-gray-500 code-font">
+        CYBER SKILL QUEST &copy; 2026 // Interactive Digital Learning Platform
+    </footer>
+
+    <!-- アプリケーションロジック -->
+    <script>
+        /* ==========================================
+           Web Audio API によるサウンドシステム
+        ========================================== */
+        class SoundSystem {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playTone(freq, type, duration, gainValue = 0.1) {
+                if (this.muted) return;
+                this.init();
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(gainValue, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            keyPress() {
+                this.playTone(600, 'sine', 0.05, 0.03);
+            }
+
+            correct() {
+                this.playTone(880, 'triangle', 0.1, 0.08);
+                setTimeout(() => this.playTone(1760, 'triangle', 0.15, 0.08), 80);
+            }
+
+            wrong() {
+                this.playTone(150, 'sawtooth', 0.2, 0.1);
+            }
+
+            levelUp() {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    setTimeout(() => this.playTone(freq, 'sine', 0.2, 0.1), idx * 100);
+                });
+            }
+        }
+
+        const sound = new SoundSystem();
+
+        function toggleAudio() {
+            sound.muted = !sound.muted;
+            const icon = document.getElementById('audio-icon');
+            if (sound.muted) {
+                icon.className = 'fa-solid fa-volume-xmark text-lg text-red-400';
+            } else {
+                icon.className = 'fa-solid fa-volume-high text-lg text-cyber-neonBlue';
+                sound.correct();
+            }
+        }
+
+        /* ==========================================
+           グローバル状態とプレイヤーデータ
+        ========================================== */
+        let player = {
+            level: 1,
+            xp: 0,
+            xpToNext: 100,
+            score: 0,
+            achievements: {
+                typing_first: false,
+                shortcut_first: false,
+                binary_first: false,
+                security_first: false,
+                level_5: false,
+                score_1000: false
+            }
+        };
+
+        const achievementsList = [
+            { id: 'typing_first', title: 'タイピスト', desc: 'タイピングを一回クリア', icon: 'fa-keyboard' },
+            { id: 'shortcut_first', title: '操作の達人', desc: 'ショートカットを一回クリア', icon: 'fa-bolt' },
+            { id: 'binary_first', title: 'ビナリアン', desc: '2進数パズルを一回クリア', icon: 'fa-binary' },
+            { id: 'security_first', title: 'ホワイトハッカー', desc: 'セキュリティをクリア', icon: 'fa-shield-halved' },
+            { id: 'level_5', title: 'エリート', desc: 'レベル5に到達', icon: 'fa-angles-up' },
+            { id: 'score_1000', title: 'スコアラー', desc: '通算スコア1000達成', icon: 'fa-star' }
+        ];
+
+        // データの永続化 (localStorage)
+        function loadPlayerData() {
+            const saved = localStorage.getItem('cyber_skill_quest_player');
+            if (saved) {
+                try {
+                    player = JSON.parse(saved);
+                } catch(e){}
+            }
+            updatePlayerUI();
+            renderAchievements();
+        }
+
+        function savePlayerData() {
+            localStorage.setItem('cyber_skill_quest_player', JSON.stringify(player));
+        }
+
+        function addXP(amount) {
+            player.xp += amount;
+            while (player.xp >= player.xpToNext) {
+                player.xp -= player.xpToNext;
+                player.level++;
+                player.xpToNext = Math.floor(player.xpToNext * 1.5);
+                sound.levelUp();
+                if (player.level >= 5) checkAchievement('level_5');
+            }
+            updatePlayerUI();
+            savePlayerData();
+        }
+
+        function addScore(amount) {
+            player.score += amount;
+            if (player.score >= 1000) checkAchievement('score_1000');
+            updatePlayerUI();
+            savePlayerData();
+        }
+
+        function checkAchievement(id) {
+            if (player.achievements[id] === false) {
+                player.achievements[id] = true;
+                savePlayerData();
+                renderAchievements();
+            }
+        }
+
+        function updatePlayerUI() {
+            document.getElementById('player-level').innerText = player.level;
+            document.getElementById('player-score').innerText = player.score;
+            document.getElementById('player-xp-text').innerText = `${player.xp} / ${player.xpToNext}`;
+            const pct = Math.min(100, Math.floor((player.xp / player.xpToNext) * 100));
+            document.getElementById('player-xp-bar').style.width = `${pct}%`;
+        }
+
+        function renderAchievements() {
+            const container = document.getElementById('achievements-container');
+            container.innerHTML = '';
+            achievementsList.forEach(ach => {
+                const unlocked = player.achievements[ach.id];
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border flex flex-col items-center text-center gap-1 transition-all ${
+                    unlocked 
+                    ? 'bg-cyber-dark border-cyber-neonYellow text-cyber-neonYellow shadow-neon-yellow' 
+                    : 'bg-cyber-dark/40 border-gray-800 text-gray-600'
+                }`;
+                card.innerHTML = `
+                    <i class="fa-solid ${ach.icon} text-xl my-1"></i>
+                    <span class="text-xs font-bold">${ach.title}</span>
+                    <span class="text-[10px] text-gray-500">${ach.desc}</span>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // 画面切り替え
+        function showDashboard() {
+            stopTypingTimer();
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById('view-dashboard').classList.remove('hidden');
+        }
+
+        function openResultModal(title, score, xp, statsHTML) {
+            document.getElementById('result-game-title').innerText = title;
+            document.getElementById('result-score').innerText = `+${score}`;
+            document.getElementById('result-xp').innerText = `+${xp}`;
+            document.getElementById('result-stats').innerHTML = statsHTML;
+            document.getElementById('modal-result').classList.remove('hidden');
+            addScore(score);
+            addXP(xp);
+        }
+
+        function closeResultModal() {
+            document.getElementById('modal-result').classList.add('hidden');
+            showDashboard();
+        }
+
+        /* ==========================================
+           1. タイピングゲーム ロジック
+        ========================================== */
+        const typingData = [
+            { word: 'const', jp: '再代入不可能な変数を宣言するキーワード' },
+            { word: 'function', jp: '処理のまとまりを定義するブロック' },
+            { word: 'javascript', jp: 'Webページに動的な動きを与えるプログラミング言語' },
+            { word: 'cybersecurity', jp: 'デジタルデータやシステムを攻撃から保護すること' },
+            { word: 'algorithm', jp: '問題を解決するための計算手順や処理手順' },
+            { word: 'database', jp: '整理されたデータの集まりとそれを管理する構造' },
+            { word: 'api', jp: 'ソフトウェア同士が互いに情報をやり取りする仕組み' },
+            { word: 'frontend', jp: 'ユーザーが直接触れるWebアプリケーションの画面部分' }
+        ];
+
+        let typingState = {
+            currentIndex: 0,
+            currentCharIdx: 0,
+            timer: 60,
+            timerInterval: null,
+            totalTyped: 0,
+            correctTyped: 0,
+            startTime: null,
+            active: false
+        };
+
+        function startTypingGame() {
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById('view-typing').classList.remove('hidden');
+            
+            typingState = {
+                currentIndex: 0,
+                currentCharIdx: 0,
+                timer: 30,
+                timerInterval: null,
+                totalTyped: 0,
+                correctTyped: 0,
+                startTime: null,
+                active: true
+            };
+
+            const input = document.getElementById('typing-input');
+            input.value = '';
+            input.focus();
+
+            updateTypingDisplay();
+            document.getElementById('typing-timer').innerText = typingState.timer;
+            document.getElementById('typing-wpm').innerText = '0';
+            document.getElementById('typing-accuracy').innerText = '100';
+
+            // 入力イベント設定
+            input.oninput = handleTypingInput;
+        }
+
+        function updateTypingDisplay() {
+            const current = typingData[typingState.currentIndex];
+            document.getElementById('typing-target-jp').innerText = current.jp;
+
+            const targetDisplay = document.getElementById('typing-target-display');
+            targetDisplay.innerHTML = '';
+
+            for (let i = 0; i < current.word.length; i++) {
+                const span = document.createElement('span');
+                span.innerText = current.word[i];
+                if (i < typingState.currentCharIdx) {
+                    span.className = 'text-cyber-neonGreen border-b-2 border-cyber-neonGreen';
+                } else if (i === typingState.currentCharIdx) {
+                    span.className = 'text-cyber-neonBlue bg-cyber-neonBlue/20 underline animate-pulse';
+                } else {
+                    span.className = 'text-gray-500';
+                }
+                targetDisplay.appendChild(span);
+            }
+        }
+
+        function handleTypingInput(e) {
+            if (!typingState.active) return;
+
+            // 最初の打鍵でタイマースタート
+            if (!typingState.startTime) {
+                typingState.startTime = Date.now();
+                typingState.timerInterval = setInterval(() => {
+                    typingState.timer--;
+                    document.getElementById('typing-timer').innerText = typingState.timer;
+                    if (typingState.timer <= 0) {
+                        endTypingGame();
+                    }
+                }, 1000);
+            }
+
+            const currentWord = typingData[typingState.currentIndex].word;
+            const inputValue = e.target.value;
+            const typedChar = inputValue[inputValue.length - 1];
+
+            if (!typedChar) return;
+
+            typingState.totalTyped++;
+
+            if (typedChar === currentWord[typingState.currentCharIdx]) {
+                sound.keyPress();
+                typingState.correctTyped++;
+                typingState.currentCharIdx++;
+
+                if (typingState.currentCharIdx >= currentWord.length) {
+                    sound.correct();
+                    typingState.currentIndex = (typingState.currentIndex + 1) % typingData.length;
+                    typingState.currentCharIdx = 0;
+                    e.target.value = '';
+                }
+            } else {
+                sound.wrong();
+                e.target.value = inputValue.slice(0, -1);
+            }
+
+            // WPM & 正確性更新
+            const timeElapsed = (Date.now() - typingState.startTime) / 60000; // 分換算
+            const wpm = timeElapsed > 0 ? Math.round((typingState.correctTyped / 5) / timeElapsed) : 0;
+            const acc = typingState.totalTyped > 0 ? Math.round((typingState.correctTyped / typingState.totalTyped) * 100) : 100;
+
+            document.getElementById('typing-wpm').innerText = wpm;
+            document.getElementById('typing-accuracy').innerText = acc;
+
+            updateTypingDisplay();
+        }
+
+        function stopTypingTimer() {
+            if (typingState.timerInterval) clearInterval(typingState.timerInterval);
+            typingState.active = false;
+        }
+
+        function endTypingGame() {
+            stopTypingTimer();
+            checkAchievement('typing_first');
+
+            const timeElapsed = (Date.now() - typingState.startTime) / 60000;
+            const wpm = timeElapsed > 0 ? Math.round((typingState.correctTyped / 5) / timeElapsed) : 0;
+            const acc = typingState.totalTyped > 0 ? Math.round((typingState.correctTyped / typingState.totalTyped) * 100) : 100;
+
+            const score = Math.round(wpm * 10 * (acc / 100));
+            const xp = Math.round(score / 4);
+
+            const stats = `
+                <div>• 平均速度 (WPM): <span class="text-cyber-neonBlue font-bold">${wpm}</span></div>
+                <div>• 入力正確性: <span class="text-cyber-neonGreen font-bold">${acc}%</span></div>
+                <div>• 総タイプ数: <span class="text-gray-300 font-bold">${typingState.totalTyped}</span> 文字</div>
+            `;
+
+            openResultModal('TYPING MASTER', score, xp, stats);
+        }
+
+
+        /* ==========================================
+           2. ショートカットキーゲーム ロジック
+        ========================================== */
+        const shortcutQuestions = [
+            { title: 'コピー', desc: '選択した項目をコピーする', win: ['Control', 'c'], mac: ['Meta', 'c'] },
+            { title: '貼り付け（ペースト）', desc: 'コピーした項目を貼り付ける', win: ['Control', 'v'], mac: ['Meta', 'v'] },
+            { title: '元に戻す（アンドゥ）', desc: '直前の操作を取り消す', win: ['Control', 'z'], mac: ['Meta', 'z'] },
+            { title: '全選択', desc: 'すべての項目を選択する', win: ['Control', 'a'], mac: ['Meta', 'a'] },
+            { title: '保存（セーブ）', desc: '現在のファイルを保存する', win: ['Control', 's'], mac: ['Meta', 's'] },
+            { title: '検索', desc: 'ページ内やファイル内を検索する', win: ['Control', 'f'], mac: ['Meta', 'f'] }
+        ];
+
+        let shortcutState = {
+            os: 'win',
+            currentIndex: 0,
+            score: 0,
+            active: false
+        };
+
+        function startShortcutGame() {
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById('view-shortcut').classList.remove('hidden');
+
+            shortcutState.currentIndex = 0;
+            shortcutState.score = 0;
+            shortcutState.active = true;
+
+            document.addEventListener('keydown', handleShortcutKeyDown);
+            loadShortcutQuestion();
+        }
+
+        function setShortcutOS(os) {
+            shortcutState.os = os;
+            document.getElementById('os-win-btn').className = os === 'win' 
+                ? 'px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-cyber-neonGreen text-black' 
+                : 'px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-400';
+            document.getElementById('os-mac-btn').className = os === 'mac' 
+                ? 'px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-cyber-neonGreen text-black' 
+                : 'px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-400';
+            loadShortcutQuestion();
+        }
+
+        function loadShortcutQuestion() {
+            if (shortcutState.currentIndex >= shortcutQuestions.length) {
+                endShortcutGame();
+                return;
+            }
+
+            const q = shortcutQuestions[shortcutState.currentIndex];
+            document.getElementById('shortcut-question').innerText = `「${q.title}」のキーを押してください`;
+            document.getElementById('shortcut-desc').innerText = q.desc;
+            document.getElementById('shortcut-score').innerText = shortcutState.score;
+            document.getElementById('shortcut-remaining').innerText = shortcutQuestions.length - shortcutState.currentIndex;
+            
+            document.getElementById('shortcut-key-display').innerHTML = `
+                <span class="px-4 py-3 bg-cyber-dark border border-gray-700 rounded-xl text-xl font-bold code-font text-gray-500 shadow-inner">キーを入力待ち...</span>
+            `;
+            document.getElementById('shortcut-feedback').innerText = '';
+        }
+
+        function handleShortcutKeyDown(e) {
+            if (!shortcutState.active) return;
+            // リフレッシュ等のブラウザ標準の動作を一部防止
+            if (e.key === 'r' && (e.ctrlKey || e.metaKey)) e.preventDefault();
+            if (e.key === 's' && (e.ctrlKey || e.metaKey)) e.preventDefault();
+
+            e.preventDefault();
+
+            const q = shortcutQuestions[shortcutState.currentIndex];
+            const targetKeys = shortcutState.os === 'win' ? q.win : q.mac;
+
+            // 現在押されているキーを判定
+            let pressed = [];
+            if (e.ctrlKey) pressed.push('Control');
+            if (e.metaKey) pressed.push('Meta');
+            if (e.altKey) pressed.push('Alt');
+            if (e.shiftKey) pressed.push('Shift');
+            
+            if (!['Control', 'Meta', 'Alt', 'Shift'].includes(e.key)) {
+                pressed.push(e.key.toLowerCase());
+            }
+
+            // 表示の更新
+            const displayHTML = pressed.map(k => {
+                const label = k === 'Meta' ? 'Command ⌘' : (k === 'Control' ? 'Ctrl' : k.toUpperCase());
+                return `<span class="px-3 py-2 bg-cyber-neonGreen/20 border border-cyber-neonGreen text-cyber-neonGreen rounded-lg text-lg font-bold code-font">${label}</span>`;
+            }).join(' + ');
+
+            if (displayHTML) {
+                document.getElementById('shortcut-key-display').innerHTML = displayHTML;
+            }
+
+            // 正誤判定
+            const isMatch = targetKeys.every(k => {
+                if (k === 'Control') return e.ctrlKey;
+                if (k === 'Meta') return e.metaKey;
+                return e.key.toLowerCase() === k.toLowerCase();
+            });
+
+            if (isMatch && pressed.length >= targetKeys.length) {
+                sound.correct();
+                document.getElementById('shortcut-feedback').className = 'text-sm font-bold text-cyber-neonGreen';
+                document.getElementById('shortcut-feedback').innerText = '正解 (SUCCESS!)';
+                shortcutState.score += 150;
+                shortcutState.currentIndex++;
+                setTimeout(loadShortcutQuestion, 800);
+            }
+        }
+
+        function endShortcutGame() {
+            shortcutState.active = false;
+            document.removeEventListener('keydown', handleShortcutKeyDown);
+            checkAchievement('shortcut_first');
+
+            const score = shortcutState.score;
+            const xp = Math.round(score / 3);
+
+            const stats = `
+                <div>• 全問クリア!</div>
+                <div>• 獲得スコア: <span class="text-cyber-neonYellow font-bold">${score}</span></div>
+            `;
+
+            openResultModal('SHORTCUT MASTER', score, xp, stats);
+        }
+
+
+        /* ==========================================
+           3. 2進数・バイナリパズル ロジック
+        ========================================== */
+        let binaryState = {
+            stage: 1,
+            maxStage: 5,
+            target: 0,
+            bits: [0,0,0,0,0,0,0,0],
+            score: 0
+        };
+
+        function startBinaryGame() {
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById('view-binary').classList.remove('hidden');
+
+            binaryState.stage = 1;
+            binaryState.score = 0;
+            loadBinaryStage();
+        }
+
+        function loadBinaryStage() {
+            binaryState.bits = [0,0,0,0,0,0,0,0];
+            // ランダムな10進数を設定（レベルに応じて範囲拡大）
+            const maxVal = binaryState.stage * 45;
+            binaryState.target = Math.floor(Math.random() * maxVal) + 5;
+
+            document.getElementById('binary-stage').innerText = `${binaryState.stage}/${binaryState.maxStage}`;
+            document.getElementById('binary-score').innerText = binaryState.score;
+            document.getElementById('binary-target').innerText = binaryState.target;
+
+            renderBinaryBits();
+            updateBinarySum();
+        }
+
+        function renderBinaryBits() {
+            const container = document.getElementById('binary-bits-container');
+            container.innerHTML = '';
+
+            const bitValues = [128, 64, 32, 16, 8, 4, 2, 1];
+
+            bitValues.forEach((val, idx) => {
+                const bitBtn = document.createElement('div');
+                const isOne = binaryState.bits[idx] === 1;
+
+                bitBtn.onclick = () => toggleBit(idx);
+                bitBtn.className = `cursor-pointer flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${
+                    isOne 
+                    ? 'bg-cyber-neonPurple/20 border-cyber-neonPurple text-cyber-neonPurple shadow-neon-purple' 
+                    : 'bg-cyber-dark border-gray-800 text-gray-500 hover:border-gray-600'
+                }`;
+
+                bitBtn.innerHTML = `
+                    <span class="text-[10px] code-font text-gray-400">${val}</span>
+                    <span class="text-2xl font-black code-font">${binaryState.bits[idx]}</span>
+                `;
+                container.appendChild(bitBtn);
+            });
+        }
+
+        function toggleBit(idx) {
+            sound.keyPress();
+            binaryState.bits[idx] = binaryState.bits[idx] === 0 ? 1 : 0;
+            renderBinaryBits();
+            updateBinarySum();
+        }
+
+        function updateBinarySum() {
+            const bitValues = [128, 64, 32, 16, 8, 4, 2, 1];
+            const sum = binaryState.bits.reduce((acc, bit, idx) => acc + (bit * bitValues[idx]), 0);
+            document.getElementById('binary-current-sum').innerText = sum;
+            return sum;
+        }
+
+        function checkBinaryAnswer() {
+            const sum = updateBinarySum();
+            if (sum === binaryState.target) {
+                sound.correct();
+                binaryState.score += 200;
+                if (binaryState.stage >= binaryState.maxStage) {
+                    checkAchievement('binary_first');
+                    endBinaryGame();
+                } else {
+                    binaryState.stage++;
+                    loadBinaryStage();
+                }
+            } else {
+                sound.wrong();
+            }
+        }
+
+        function endBinaryGame() {
+            const score = binaryState.score;
+            const xp = Math.round(score / 2);
+            const stats = `
+                <div>• バイナリステージ全コンプリート!</div>
+                <div>• 計算精度: <span class="text-cyber-neonGreen font-bold">100%</span></div>
+            `;
+            openResultModal('BINARY PUZZLE', score, xp, stats);
+        }
+
+
+        /* ==========================================
+           4. サイバーセキュリティ・ディテクター ロジック
+        ========================================== */
+        const securityQuestions = [
+            {
+                category: 'フィッシングメール',
+                title: '以下の受信メールは安全ですか？',
+                content: '件名：【重要】アカウント更新のお願い\n送信者：support@my-bank-security-check.com\n\nお客様の口座に不正アクセスの可能性があります。24時間以内に以下のリンクよりログインしてパスワードを変更してください。',
+                isSafe: false,
+                explanation: '【危険】送信元ドメインが公式のものではありません。不安を煽って偽サイトへ誘導するフィッシング詐欺の典型例です。'
+            },
+            {
+                category: 'パスワード強度',
+                title: '以下のパスワード管理方法は安全ですか？',
+                content: '設定パスワード： K9#mP$2x!vL8\n\n管理方法：パスワード生成ツールで作成したランダムな12桁以上の記号混じり文字列を、専用のパスワードマネージャーで暗号化保存している。',
+                isSafe: true,
+                explanation: '【安全】複雑で十分な長さがあり、パスワードマネージャーで安全に管理されています。'
+            },
+            {
+                category: 'URL・Webサイト',
+                title: '以下のWebサイトURLは安全ですか？',
+                content: '接続先URL： http://login.yahoo.co.jp.free-login-check.info/login\n\n通信プロトコル：HTTP（鍵マークなし）',
+                isSafe: false,
+                explanation: '【危険】ドメインの末尾が「free-login-check.info」となっており、公式サイトではありません。また、暗号化（HTTPS）もされていません。'
+            },
+            {
+                category: 'Wi-Fiセキュリティ',
+                title: '以下のネットワーク利用は安全ですか？',
+                content: 'カフェの無料Wi-Fi（暗号化キーなし）に接続し、ネットサーフィンを行っている最中に、クレジットカード情報を入力して買い物をした。',
+                isSafe: false,
+                explanation: '【危険】暗号化されていないフリーWi-Fiでは、通信内容が第三者に盗聴されるリスクが高いため、機密情報や決済情報の入力は避けるべきです。'
+            }
+        ];
+
+        let securityState = {
+            currentIndex: 0,
+            score: 0
+        };
+
+        function startSecurityGame() {
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById('view-security').classList.remove('hidden');
+
+            securityState.currentIndex = 0;
+            securityState.score = 0;
+
+            loadSecurityQuestion();
+        }
+
+        function loadSecurityQuestion() {
+            if (securityState.currentIndex >= securityQuestions.length) {
+                endSecurityGame();
+                return;
+            }
+
+            const q = securityQuestions[securityState.currentIndex];
+            document.getElementById('security-category').innerText = q.category;
+            document.getElementById('security-progress').innerText = `QUESTION ${securityState.currentIndex + 1}/${securityQuestions.length}`;
+            document.getElementById('security-title').innerText = q.title;
+            document.getElementById('security-content').innerText = q.content;
+
+            document.getElementById('security-explanation').classList.add('hidden');
+        }
+
+        function answerSecurity(userSaysSafe) {
+            const q = securityQuestions[securityState.currentIndex];
+            const isCorrect = (userSaysSafe === q.isSafe);
+
+            const expBox = document.getElementById('security-explanation');
+            const titleBox = document.getElementById('security-result-title');
+            const descBox = document.getElementById('security-result-desc');
+
+            expBox.classList.remove('hidden');
+
+            if (isCorrect) {
+                sound.correct();
+                securityState.score++;
+                titleBox.className = 'font-bold text-cyber-neonGreen text-base';
+                titleBox.innerText = '正解！ (CORRECT)';
+            } else {
+                sound.wrong();
+                titleBox.className = 'font-bold text-cyber-neonPink text-base';
+                titleBox.innerText = '不正解... (INCORRECT)';
+            }
+
+            descBox.innerText = q.explanation;
+            document.getElementById('security-score').innerText = `${securityState.score}/${securityQuestions.length}`;
+        }
+
+        function nextSecurityQuestion() {
+            securityState.currentIndex++;
+            loadSecurityQuestion();
+        }
+
+        function endSecurityGame() {
+            checkAchievement('security_first');
+            const score = securityState.score * 250;
+            const xp = securityState.score * 80;
+
+            const stats = `
+                <div>• 正解率: <span class="text-cyber-neonPink font-bold">${Math.round((securityState.score/securityQuestions.length)*100)}%</span></div>
+                <div>• 正答数: <span class="text-white font-bold">${securityState.score} / ${securityQuestions.length}</span></div>
+            `;
+
+            openResultModal('SECURITY DETECTOR', score, xp, stats);
+        }
+
+        // 初期化ロード
+        window.onload = function() {
+            loadPlayerData();
+        };
+    </script>
+</body>
+</html>
